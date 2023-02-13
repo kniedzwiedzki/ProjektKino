@@ -12,9 +12,9 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/${app.prefix}/${app.version}/auth")
 @AllArgsConstructor
 @Tag(name = "Authentication", description = "Authentication endpoints")
-public class AuthController {
+public class AuthenticationController {
 
-    private final AuthService service;
+    private final AuthenticationService service;
 
     @PostMapping("/register")
     public ResponseEntity<TokenDto> register(@RequestBody RegisterDto request) {
@@ -22,7 +22,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<TokenDto> authenticate(@RequestBody LoginDto request) {
+    public ResponseEntity<TokenDto> authenticate(@RequestBody AuthenticationDto request) {
         return ResponseEntity.ok(service.authenticate(request));
     }
 

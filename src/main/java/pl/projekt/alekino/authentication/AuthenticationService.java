@@ -14,7 +14,7 @@ import java.util.Collections;
 
 @Service
 @RequiredArgsConstructor
-public class AuthService {
+public class AuthenticationService {
     private final AppUserService userService;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
@@ -35,7 +35,7 @@ public class AuthService {
                 .build();
     }
 
-    public TokenDto authenticate(LoginDto request) {
+    public TokenDto authenticate(AuthenticationDto request) {
         authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
         AppUser user = userService.findByEmail(request.getEmail()).orElseThrow();
         String jwtToken = tokenService.generateToken(user);
