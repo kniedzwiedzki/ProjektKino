@@ -1,4 +1,4 @@
-package pl.projekt.alekino.config;
+package pl.projekt.alekino.configuration;
 
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;

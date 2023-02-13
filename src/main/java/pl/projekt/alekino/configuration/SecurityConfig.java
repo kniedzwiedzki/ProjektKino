@@ -1,4 +1,4 @@
-package pl.projekt.alekino.config;
+package pl.projekt.alekino.configuration;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
