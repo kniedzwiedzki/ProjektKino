@@ -1,4 +1,4 @@
-package pl.projekt.alekino.configuration;
+package pl.projekt.alekino.configuration.security;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
