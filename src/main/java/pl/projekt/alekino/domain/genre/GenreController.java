@@ -42,8 +42,7 @@ public class GenreController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ROLE_USER') AND hasRole('ROLE_ADMIN')")
-    @Operation(summary = "Get genre by id", security = { @SecurityRequirement(name = "bearer-key") })
+    @Operation(summary = "Get genre by id")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Found the genre",
                     content = {@Content(schema = @Schema(implementation = GenreDto.class))}),
@@ -52,18 +51,15 @@ public class GenreController {
             @ApiResponse(responseCode = "404", description = "Genre not found", content = @Content)
     })
     public ResponseEntity<GenreDto> getGenreById(@PathVariable Long id) {
-        return genreService.getGenreById(id)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(genreService.getGenreById(id));
     }
 
     @PostMapping()
-    @Operation(summary = "Add new genre")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Add new genre", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "201", description = "Genre created",
-                    content = @Content),
-            @ApiResponse(responseCode = "400", description = "Bad request, wrong genre",
-                    content = @Content)
+            @ApiResponse(responseCode = "201", description = "Genre created", content = @Content),
+            @ApiResponse(responseCode = "400", description = "Bad request, wrong genre", content = @Content)
     })
     public ResponseEntity<Void> addGenre(@RequestBody GenreDto genreDto) {
         GenreDto genre = genreService.addGenre(genreDto);
@@ -76,7 +72,8 @@ public class GenreController {
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update genre")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Update genre", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Genre updated",
                     content = {@Content(schema = @Schema(implementation = GenreDto.class))}),
@@ -85,16 +82,13 @@ public class GenreController {
             @ApiResponse(responseCode = "404", description = "Genre not found", content = @Content)
     })
     public ResponseEntity<Void> updateGenre(@PathVariable Long id, @RequestBody GenreDto genreDto) {
-        if (genreService.getGenreById(id).isPresent()) {
-            genreService.updateGenre(id, genreDto);
-            return ResponseEntity.ok().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        genreService.updateGenre(id, genreDto);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete genre")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Delete genre", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Genre deleted",
                     content = @Content),
@@ -103,12 +97,8 @@ public class GenreController {
             @ApiResponse(responseCode = "404", description = "Genre not found", content = @Content)
     })
     public ResponseEntity<Void> deleteGenre(@PathVariable Long id) {
-        if (genreService.getGenreById(id).isPresent()) {
-            genreService.deleteGenre(id);
-            return ResponseEntity.noContent().build();
-        } else {
-            return ResponseEntity.notFound().build();
-        }
+        genreService.deleteGenre(id);
+        return ResponseEntity.noContent().build();
     }
 
 }

@@ -4,8 +4,8 @@ import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pl.projekt.alekino.domain.genre.GenreDto;
 import pl.projekt.alekino.domain.genre.Genre;
+import pl.projekt.alekino.domain.genre.GenreDto;
 import pl.projekt.alekino.domain.genre.GenreRepository;
 
 import java.util.ArrayList;
@@ -19,6 +19,8 @@ public class GenreService {
 
     private final GenreRepository genreRepository;
     private final ModelMapper modelMapper;
+
+    private final GenreValidator validator;
 
     public GenreDto convertToDto(Genre p) {
         return modelMapper.map(p, GenreDto.class);
@@ -37,9 +39,8 @@ public class GenreService {
     }
 
     @Transactional(readOnly = true)
-    public Optional<GenreDto> getGenreById(Long id) {
-        return genreRepository.findById(id)
-                .map(this::convertToDto);
+    public GenreDto getGenreById(Long id) {
+        return convertToDto(validator.validateExists(id));
     }
 
     @Transactional(readOnly = true)
