@@ -4,9 +4,6 @@ import lombok.AllArgsConstructor;
 import org.modelmapper.ModelMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import pl.projekt.alekino.domain.agerestriction.AgeRestrictionDto;
-import pl.projekt.alekino.domain.agerestriction.AgeRestriction;
-import pl.projekt.alekino.domain.agerestriction.AgeRestrictionRepository;
 
 import java.util.List;
 import java.util.Optional;
@@ -15,8 +12,11 @@ import java.util.Optional;
 @Service
 public class AgeRestrictionService {
 
+    private final AgeRestrictionRepository repository;
     private final AgeRestrictionRepository ageRestrictionRepository;
     private final ModelMapper modelMapper;
+
+    private final AgeRestrictionValidator validator;
 
     public AgeRestrictionDto convertToDto(AgeRestriction p) {
         return modelMapper.map(p, AgeRestrictionDto.class);
@@ -41,8 +41,12 @@ public class AgeRestrictionService {
     }
 
     @Transactional
-    public void addAgeRestriction(AgeRestrictionDto ageRestrictionDto) {
+    public AgeRestriction addAgeRestriction(AgeRestrictionDto ageRestrictionDto) {
         AgeRestriction ageRestriction = convertToEntity(ageRestrictionDto);
-        ageRestrictionRepository.save(ageRestriction);
+        ageRestriction.setId(null);
+        validator.validateInput(ageRestriction);
+        validator.validateNotDuplicate(ageRestriction);
+        return repository.save(ageRestriction);
     }
-}
+    }
+
