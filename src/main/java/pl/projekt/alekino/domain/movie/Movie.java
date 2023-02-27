@@ -2,7 +2,11 @@ package pl.projekt.alekino.domain.movie;
 
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
+import org.hibernate.validator.constraints.Range;
 import pl.projekt.alekino.domain.agerestriction.AgeRestriction;
 import pl.projekt.alekino.domain.genre.Genre;
 
@@ -20,10 +24,17 @@ public class Movie {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @NotBlank(message = "Field must not be blank")
+    @Size(min = 1, max = 50, message = "Field must be between {min} and {max} characters")
     private String title;
+
+    @NotBlank(message = "Field must not be blank")
+    @Size(min = 1, max = 50, message = "Field must be between {min} and {max} characters")
     private String originalTitle;
+    @Range(min = 1900, max = 2030, message = "Field must be between {min} and {max}")
     private Integer releaseYear;
     private String imageUrl;
+    @NotNull(message = "Field must not be null")
     private int duration;
     @Transient
     private double rating;

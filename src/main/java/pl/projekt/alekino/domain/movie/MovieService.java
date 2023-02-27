@@ -6,11 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import pl.projekt.alekino.domain.genre.GenreDto;
 import pl.projekt.alekino.domain.genre.GenreService;
-import pl.projekt.alekino.domain.movie.MovieLongDto;
-import pl.projekt.alekino.domain.movie.MovieShortDto;
 import pl.projekt.alekino.domain.genre.Genre;
-import pl.projekt.alekino.domain.movie.Movie;
-import pl.projekt.alekino.domain.movie.MovieRepository;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,6 +19,8 @@ public class MovieService {
     private final MovieRepository movieRepository;
     private final GenreService genreService;
     private final ModelMapper modelMapper;
+
+    private final MovieValidator validator;
 
     public MovieLongDto convertToLongDto(Movie p) {
         return modelMapper.map(p, MovieLongDto.class);
@@ -43,104 +41,87 @@ public class MovieService {
                 .toList();
     }
 
-    public List<MovieShortDto> getAllMovies(List<String> genres) {
+    public List<MovieShortDto> getAllMovies(Optional<List<String>> genres) {
         List<Movie> movies = movieRepository.findAll();
-
-        List<Genre> genresEntities = genreService.getGenresByName(genres);
-        if (genresEntities.isEmpty()) {
-            return movies.stream()
-                    .map(this::convertToShortDto)
-                    .toList();
-        } else {
-            for (Genre genre : genresEntities) {
-                movies = movies.stream()
-                        .filter(movie -> movie.getGenres()
-                                .stream()
-                                .map(Genre::getId)
-                                .anyMatch(id -> id.equals(genre.getId())))
-                        .toList();
+        if (genres.isPresent()) {
+            List<Genre> genresEntities = genreService.getGenresByName(genres.get());
+            if (!genresEntities.isEmpty()) {
+                for (Genre genre : genresEntities) {
+                    movies = movies.stream()
+                            .filter(movie -> movie.getGenres()
+                                    .stream()
+                                    .map(Genre::getId)
+                                    .anyMatch(id -> id.equals(genre.getId())))
+                            .toList();
+                }
             }
-            return movies.stream()
-                    .map(this::convertToShortDto)
-                    .toList();
         }
-
+        return movies.stream()
+                .map(this::convertToShortDto)
+                .toList();
     }
 
     @Transactional(readOnly = true)
-    public Optional<MovieLongDto> getMovieById(Long id) {
-        return movieRepository.findById(id)
-                .map(this::convertToLongDto);
+    public MovieLongDto getMovieById(Long id) {
+        return convertToLongDto(validator.validateExists(id));
     }
 
+
     @Transactional
-    public Optional<MovieLongDto> addMovie(MovieLongDto movie) {
+    public MovieLongDto addMovie(MovieLongDto movie) {
         Movie movieEntity = convertToEntity(movie);
         movieEntity.setId(null);
-        return Optional.of(convertToLongDto(movieRepository.save(movieEntity)));
+        validateMovie(movieEntity);
+        return convertToLongDto(movieRepository.save(movieEntity));
     }
 
     @Transactional
-    public Optional<MovieLongDto> updateMovie(Long id, MovieLongDto movie) {
-        if (!movieRepository.existsById(id))
-            return Optional.empty();
+    public MovieLongDto updateMovie(Long id, MovieLongDto movie) {
+        validator.validateExists(id);
         Movie movieEntity = convertToEntity(movie);
         movieEntity.setId(id);
-        return Optional.of(convertToLongDto(movieRepository.save(movieEntity)));
+        validateMovie(movieEntity);
+        return convertToLongDto(movieRepository.save(movieEntity));
+    }
+
+    public void validateMovie(Movie movie) {
+        validator.validateNotDuplicate(movie);
+        validator.validateInput(movie);
+        movie.getGenres().forEach(genre -> validator.validateGenreExists(genre.getId()));
+        validator.validateAgeRestrictionExists(movie.getAgeRestriction().getId());
     }
 
     @Transactional
-    public boolean deleteMovie(Long id) {
-        if (!movieRepository.existsById(id))
-            return false;
+    public void deleteMovie(Long id) {
+        validator.validateExists(id);
         movieRepository.deleteById(id);
-        return true;
     }
 
     @Transactional(readOnly = true)
     public List<GenreDto> getGenresOfMovieById(Long id) {
-        return movieRepository.findById(id)
-                .map(value -> value.getGenres()
-                        .stream()
-                        .map(genreService::convertToDto)
-                        .toList())
-                .orElse(Collections.emptyList());
-    }
-
-    @Transactional(readOnly = true)
-    public boolean exists(Long id) {
-        return movieRepository.existsById(id);
+        return validator.validateExists(id)
+                .getGenres()
+                .stream()
+                .map(genreService::convertToDto)
+                .toList();
     }
 
     @Transactional
-    public Optional<GenreDto> addGenreToMovie(Long id, GenreDto genre) {
-        Optional<GenreDto> newGenre = genreService.getGenreById(genre.getId());
-        if (newGenre.isEmpty())
-            return Optional.empty();
-        Movie movie = movieRepository.findById(id).get();
-        if (movie.getGenres().stream().map(Genre::getId).noneMatch(genre.getId()::equals)) {
-            movie.getGenres().add(genreService.convertToEntity(newGenre.get()));
-            movieRepository.save(movie);
-            return newGenre;
-        }
-        return Optional.empty();
+    public GenreDto addGenreToMovie(Long id, GenreDto genre) {
+        GenreDto newGenre = genreService.getGenreById(genre.getId());
+        Movie movie = validator.validateExists(id);
+        movie = validator.validateMovieNotContainsGenre(movie, newGenre.getId());
+        movieRepository.save(movie);
+        return newGenre;
     }
 
     @Transactional
-    public boolean deleteGenreFromMovie(Long id, Long genreId) {
-        Optional<Movie> movie = movieRepository.findById(id);
-        if (movie.isEmpty())
-            return false;
-        Optional<Genre> genre = genreService.getGenreById(genreId)
-                .map(genreService::convertToEntity);
-        if (genre.isEmpty())
-            return false;
-
-        if (movie.get().getGenres().contains(genre.get())) {
-            movie.get().getGenres().remove(genre.get());
-            movieRepository.save(movie.get());
-            return true;
-        }
-        return false;
+    public void deleteGenreFromMovie(Long id, Long genreId) {
+        Movie movie = validator.validateExists(id);
+        Genre genre = validator.validateGenreExists(genreId);
+        validator.validateMovieContainsGenre(movie, genre);
+        movie.getGenres().remove(genre);
+        movieRepository.save(movie);
     }
 }
+

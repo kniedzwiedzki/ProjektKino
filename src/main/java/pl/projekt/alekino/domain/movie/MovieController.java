@@ -7,9 +7,11 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import pl.projekt.alekino.domain.genre.GenreDto;
@@ -34,10 +36,7 @@ public class MovieController {
             @ApiResponse(responseCode = "204", description = "Movies not found", content = @Content)
     })
     public ResponseEntity<List<MovieShortDto>> getAllMovies(@RequestParam Optional<List<String>> genres) {
-        if (genres.isEmpty()) {
-            return ResponseEntity.ok(movieService.getAllMovies());
-        }
-        List<MovieShortDto> movies = movieService.getAllMovies(genres.get());
+        List<MovieShortDto> movies = movieService.getAllMovies(genres);
         if (movies.isEmpty())
             return ResponseEntity.noContent().build();
         return ResponseEntity.ok(movies);
@@ -53,8 +52,7 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie not found", content = @Content)
     })
     public ResponseEntity<MovieLongDto> getMovieById(@PathVariable Long id) {
-        Optional<MovieLongDto> movie = movieService.getMovieById(id);
-        return movie.map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
+        return ResponseEntity.ok(movieService.getMovieById(id));
     }
 
     @GetMapping("/{id}/genres")
@@ -66,16 +64,12 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie not found", content = @Content)
     })
     public ResponseEntity<List<GenreDto>> getGenresOfMovieById(@PathVariable Long id) {
-        if (!movieService.exists(id))
-            return ResponseEntity.notFound().build();
-        List<GenreDto> genres = movieService.getGenresOfMovieById(id);
-        if (genres.isEmpty())
-            return ResponseEntity.noContent().build();
-        return ResponseEntity.ok(genres);
+        return ResponseEntity.ok(movieService.getGenresOfMovieById(id));
     }
 
     @PostMapping()
-    @Operation(summary = "Add new movie")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Add new movie", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Movie created",
                     content = @Content),
@@ -83,20 +77,18 @@ public class MovieController {
                     content = @Content)
     })
     public ResponseEntity<Void> addMovie(@RequestBody MovieLongDto movie) {
-        Optional<MovieLongDto> movieDto = movieService.addMovie(movie);
-        if (movieDto.isPresent()) {
-            URI location = ServletUriComponentsBuilder
-                    .fromCurrentRequest()
-                    .path("/{id}")
-                    .buildAndExpand(movieDto.get().getId())
-                    .toUri();
-            return ResponseEntity.created(location).build();
-        }
-        return ResponseEntity.badRequest().build();
+        MovieLongDto movieDto = movieService.addMovie(movie);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(movieDto.getId())
+                .toUri();
+        return ResponseEntity.created(location).build();
     }
 
     @PostMapping("/{id}/genres")
-    @Operation(summary = "Add genre to movie")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Add genre to movie", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Genre added",
                     content = @Content),
@@ -105,22 +97,18 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie not found", content = @Content)
     })
     public ResponseEntity<Void> addGenreToMovie(@PathVariable Long id, @RequestBody GenreDto genre) {
-        if (!movieService.exists(id))
-            return ResponseEntity.notFound().build();
-        Optional<GenreDto> genreDto = movieService.addGenreToMovie(id, genre);
-        if (genreDto.isPresent()) {
-            URI location = ServletUriComponentsBuilder
-                    .fromCurrentRequest()
-                    .path("/{id}")
-                    .buildAndExpand(genreDto.get().getId())
-                    .toUri();
-            return ResponseEntity.created(location).build();
-        }
-        return ResponseEntity.badRequest().build();
+        GenreDto genreDto = movieService.addGenreToMovie(id, genre);
+        URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(genreDto.getId())
+                .toUri();
+        return ResponseEntity.created(location).build();
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update movie")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Update movie", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Movie updated",
                     content = @Content),
@@ -129,14 +117,13 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie not found", content = @Content)
     })
     public ResponseEntity<Void> updateMovie(@PathVariable Long id, @RequestBody MovieLongDto movie) {
-        Optional<MovieLongDto> movieDto = movieService.updateMovie(id, movie);
-        if (movieDto.isPresent())
-            return ResponseEntity.ok().build();
-        return ResponseEntity.notFound().build();
+        movieService.updateMovie(id, movie);
+        return ResponseEntity.ok().build();
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete movie")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Delete movie", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Movie deleted",
                     content = @Content),
@@ -145,13 +132,13 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie not found", content = @Content)
     })
     public ResponseEntity<Void> deleteMovie(@PathVariable Long id) {
-        if (movieService.deleteMovie(id))
-            return ResponseEntity.noContent().build();
-        return ResponseEntity.notFound().build();
+        movieService.deleteMovie(id);
+        return ResponseEntity.noContent().build();
     }
 
     @DeleteMapping("/{id}/genres/{genreId}")
-    @Operation(summary = "Delete genre from movie")
+    @PreAuthorize("hasRole('ROLE_MODERATOR')")
+    @Operation(summary = "Delete genre from movie", security = {@SecurityRequirement(name = "bearer-key")})
     @ApiResponses(value = {
             @ApiResponse(responseCode = "204", description = "Genre deleted",
                     content = @Content),
@@ -160,9 +147,8 @@ public class MovieController {
             @ApiResponse(responseCode = "404", description = "Movie or genre not found", content = @Content)
     })
     public ResponseEntity<Void> deleteGenreFromMovie(@PathVariable Long id, @PathVariable Long genreId) {
-        if (movieService.deleteGenreFromMovie(id, genreId))
-            return ResponseEntity.noContent().build();
-        return ResponseEntity.notFound().build();
+        movieService.deleteGenreFromMovie(id, genreId);
+        return ResponseEntity.noContent().build();
     }
 
 
